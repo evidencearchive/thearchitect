@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Evidence Test | Decoding Death</title>
+    <link rel="stylesheet" href="evidence-styles.css">
+</head>
+<body>
+    <div class="evidence-container">
+        <header class="evidence-header">
+            <h1>PREMIUM EVIDENCE TEST</h1>
+            <div class="case-details">
+                <div class="case-number">CASE #DD-2025-0317</div>
+                <div class="classification">CONFIDENTIAL - PREMIUM TEST</div>
+            </div>
+        </header>
+
+        <main id="evidence-content" class="evidence-grid">
+            <div id="loading-overlay" class="loading-overlay">
+                <div class="loader">Loading Premium Evidence...</div>
+            </div>
+        </main>
+
+        <footer class="evidence-footer">
+            <div class="footer-disclaimer">
+                <p>OFFICIAL INVESTIGATIVE DOCUMENT - UNAUTHORIZED ACCESS PROHIBITED</p>
+                <p>© 2025 Investigative Task Force</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Test function to render premium evidence
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentContainer = document.getElementById('evidence-content');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            // Fetch premium evidence data
+            fetch('./premium-evidence.json')
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading overlay
+                    loadingOverlay.classList.add('hidden');
+                    
+                    if (data.premium_evidence && data.premium_evidence.length > 0) {
+                        // Render evidence items
+                        renderEvidenceItems(data.premium_evidence);
+                    } else {
+                        contentContainer.innerHTML = '<div class="error-message">No premium evidence found.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading premium evidence:', error);
+                    loadingOverlay.classList.add('hidden');
+                    contentContainer.innerHTML = '<div class="error-message">Error loading premium evidence.</div>';
+                });
+            
+            // Render evidence items with interactive elements
+            function renderEvidenceItems(evidenceItems) {
+                contentContainer.innerHTML = ''; // Clear loading
+                
+                // Create tier sections
+                const tiers = {
+                    'investigator-toolkit': {
+                        title: 'Investigator Toolkit',
+                        items: []
+                    },
+                    'insider-access': {
+                        title: 'Insider Access',
+                        items: []
+                    },
+                    'architects-confidential': {
+                        title: 'Architect\'s Confidential',
+                        items: []
+                    }
+                };
+                
+                // Sort items into tiers
+                evidenceItems.forEach(item => {
+                    if (tiers[item.premium_tier]) {
+                        tiers[item.premium_tier].items.push(item);
+                    } else {
+                        // Default to first tier if not specified
+                        tiers['investigator-toolkit'].items.push(item);
+                    }
+                });
+                
+                // Create tier sections
+                Object.keys(tiers).forEach(tierId => {
+                    const tier = tiers[tierId];
+                    
+                    if (tier.items.length > 0) {
+                        // Create tier header
+                        const tierHeader = document.createElement('div');
+                        tierHeader.classList.add('tier-header');
+                        tierHeader.innerHTML = `<h2 class="tier-title">${tier.title}</h2>`;
+                        contentContainer.appendChild(tierHeader);
+                        
+                        // Create tier items
+                        tier.items.forEach(item => {
+                            const evidenceCard = document.createElement('div');
+                            evidenceCard.classList.add('evidence-card', 'premium-evidence-card');
+                            
+                            // Create card content
+                            const cardContent = `
+                                <h3 class="evidence-title">${item.title || 'Untitled Evidence'}</h3>
+                                <div class="evidence-meta">
+                                    <span class="evidence-date">${item.date || 'Unknown Date'}</span>
+                                    <span class="evidence-type">${item.type || 'Document'}</span>
+                                </div>
+                                <div class="evidence-content">
+                                    ${truncateContent(item.content || 'No content available')}
+                                </div>
+                                <div class="evidence-tags">
+                                    ${(item.tags || []).map(tag => `<span class="evidence-tag">${tag}</span>`).join('')}
+                                    <span class="evidence-tag premium-tag">${item.premium_tier || 'Premium'}</span>
+                                </div>
+                            `;
+                            
+                            evidenceCard.innerHTML = cardContent;
+                            
+                            // Add click handler to view full content
+                            evidenceCard.addEventListener('click', function() {
+                                viewFullEvidence(item);
+                            });
+                            
+                            contentContainer.appendChild(evidenceCard);
+                        });
+                    }
+                });
+            }
+            
+            // View full evidence details in a modal
+            function viewFullEvidence(item) {
+                // Create viewer container
+                const viewer = document.createElement('div');
+                viewer.classList.add('evidence-viewer');
+                
+                // Create viewer content
+                let viewerContent = `
+                    <div class="evidence-viewer-content premium-content">
+                        <button class="close-viewer">&times;</button>
+                        <h2 class="evidence-viewer-title">${item.title || 'Untitled Evidence'}</h2>
+                        <div class="evidence-viewer-meta">
+                            <span class="evidence-date">${item.date || 'Unknown Date'}</span>
+                            <span class="evidence-type">${item.type || 'Document'}</span>
+                            <span class="evidence-source">Source: ${item.source || 'Unknown'}</span>
+                            <span class="premium-indicator">Premium: ${item.premium_tier || 'Premium'}</span>
+                        </div>
+                        <div class="evidence-viewer-body">
+                            ${(item.content || 'No content available').replace(/\n/g, '<br>')}
+                        </div>
+                `;
+                
+                // Add attachments if available
+                if (item.attachments && item.attachments.length > 0) {
+                    viewerContent += `
+                        <div class="evidence-attachments">
+                            <h3 class="attachment-title">Attachments</h3>
+                            ${item.attachments.map(attachment => `
+                                <div class="attachment-item">
+                                    <span class="attachment-icon">📎</span>
+                                    <span class="attachment-name">${attachment.name}</span>
+                                    <span class="attachment-description">${attachment.description || ''}</span>
+                                    <button class="attachment-download" data-name="${attachment.name}">View</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                viewerContent += `</div>`;
+                viewer.innerHTML = viewerContent;
+                
+                // Add close functionality
+                const closeButton = viewer.querySelector('.close-viewer');
+                closeButton.addEventListener('click', function() {
+                    document.body.removeChild(viewer);
+                });
+                
+                // Add attachment handlers
+                const attachmentButtons = viewer.querySelectorAll('.attachment-download');
+                attachmentButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        alert(`Premium attachment: ${button.dataset.name}\n\nThis would download or display the attachment in a full implementation.`);
+                    });
+                });
+                
+                // Add to body
+                document.body.appendChild(viewer);
+            }
+            
+            // Truncate long content for initial view
+            function truncateContent(content, maxLength = 200) {
+                if (!content) return '';
+                if (content.length <= maxLength) return content;
+                return content.substring(0, maxLength) + '...';
+            }
+        });
+    </script>
+
+    <style>
+        /* Additional styles for test page */
+        .tier-header {
+            grid-column: 1 / -1;
+            margin: 20px 0 10px 0;
+            padding: 10px;
+            background-color: #1a1a1a;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .tier-title {
+            color: #ffc107;
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        
+        .premium-tag {
+            background-color: #ffc107 !important;
+            color: #000 !important;
+        }
+        
+        .premium-indicator {
+            color: #ffc107;
+            font-weight: bold;
+        }
+    </style>
+</body>
+</html>

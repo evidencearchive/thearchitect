@@ -26,7 +26,7 @@
         <footer class="evidence-footer">
             <div class="footer-disclaimer">
                 <p>OFFICIAL INVESTIGATIVE DOCUMENT - UNAUTHORIZED ACCESS PROHIBITED</p>
-                <p>© 2025 Investigative Task Force</p>
+                <p> 2025 Investigative Task Force</p>
             </div>
         </footer>
     </div>
@@ -95,46 +95,105 @@
                     const evidenceCard = document.createElement('div');
                     evidenceCard.classList.add('evidence-card');
                     
-                    // Randomize redaction for added mystery
-                    const redactionLevel = Math.random() > 0.5 ? 'partial' : 'minimal';
+                    // Check if this is premium content
+                    const isPremium = item.is_premium === true;
+                    if (isPremium) {
+                        evidenceCard.classList.add('premium-evidence-card');
+                    }
+                    
+                    // Randomize redaction for added mystery (less for premium content)
+                    const redactionLevel = isPremium ? 'minimal' : (Math.random() > 0.5 ? 'partial' : 'minimal');
                     evidenceCard.classList.add(`redaction-${redactionLevel}`);
-
+                    
                     // Create card content
-                    evidenceCard.innerHTML = `
-                        <div class="evidence-header">
-                            <h3>${item.title || 'UNIDENTIFIED DOCUMENT'}</h3>
-                            <div class="evidence-metadata">
-                                <span class="evidence-type">${item.type || 'UNKNOWN'}</span>
-                                <span class="evidence-date">${item.date || 'UNDATED'}</span>
-                            </div>
+                    const cardContent = `
+                        <h3 class="evidence-title">${item.title || 'Untitled Evidence'}</h3>
+                        <div class="evidence-meta">
+                            <span class="evidence-date">${item.date || 'Unknown Date'}</span>
+                            <span class="evidence-type">${item.type || 'Document'}</span>
                         </div>
-                        <div class="evidence-body">
-                            <div class="evidence-content" data-full-content="${encodeURIComponent(item.content || '')}">
-                                ${truncateContent(item.content || '')}
-                            </div>
+                        <div class="evidence-content">
+                            ${truncateContent(item.content || 'No content available')}
                         </div>
-                        <div class="evidence-actions">
-                            <button class="reveal-btn" data-index="${index}">REVEAL DETAILS</button>
+                        <div class="evidence-tags">
+                            ${(item.tags || []).map(tag => `<span class="evidence-tag">${tag}</span>`).join('')}
+                            ${isPremium ? `<span class="evidence-tag premium-tag">${item.premium_tier || 'Premium'}</span>` : ''}
                         </div>
                     `;
-
-                    // Add reveal functionality
-                    const revealBtn = evidenceCard.querySelector('.reveal-btn');
-                    const contentElement = evidenceCard.querySelector('.evidence-content');
-                    revealBtn.addEventListener('click', () => {
-                        if (contentElement.classList.contains('fully-revealed')) {
-                            contentElement.classList.remove('fully-revealed');
-                            revealBtn.textContent = 'REVEAL DETAILS';
-                            contentElement.innerHTML = truncateContent(item.content);
-                        } else {
-                            contentElement.classList.add('fully-revealed');
-                            revealBtn.textContent = 'HIDE DETAILS';
-                            contentElement.innerHTML = decodeURIComponent(contentElement.dataset.fullContent);
-                        }
+                    
+                    evidenceCard.innerHTML = cardContent;
+                    
+                    // Add click handler to view full content
+                    evidenceCard.addEventListener('click', function() {
+                        viewFullEvidence(item);
                     });
-
+                    
                     contentContainer.appendChild(evidenceCard);
                 });
+            }
+            
+            // View full evidence details in a modal
+            function viewFullEvidence(item) {
+                // Create viewer container
+                const viewer = document.createElement('div');
+                viewer.classList.add('evidence-viewer');
+                
+                // Check if premium content
+                const isPremium = item.is_premium === true;
+                
+                // Create viewer content
+                let viewerContent = `
+                    <div class="evidence-viewer-content ${isPremium ? 'premium-content' : ''}">
+                        <button class="close-viewer">&times;</button>
+                        <h2 class="evidence-viewer-title">${item.title || 'Untitled Evidence'}</h2>
+                        <div class="evidence-viewer-meta">
+                            <span class="evidence-date">${item.date || 'Unknown Date'}</span>
+                            <span class="evidence-type">${item.type || 'Document'}</span>
+                            <span class="evidence-source">Source: ${item.source || 'Unknown'}</span>
+                            ${isPremium ? `<span class="premium-indicator">Premium: ${item.premium_tier || 'Premium'}</span>` : ''}
+                        </div>
+                        <div class="evidence-viewer-body">
+                            ${(item.content || 'No content available').replace(/\n/g, '<br>')}
+                        </div>
+                `;
+                
+                // Add attachments if available
+                if (item.attachments && item.attachments.length > 0) {
+                    viewerContent += `
+                        <div class="evidence-attachments">
+                            <h3 class="attachment-title">Attachments</h3>
+                            ${item.attachments.map(attachment => `
+                                <div class="attachment-item">
+                                    <span class="attachment-icon">📎</span>
+                                    <span class="attachment-name">${attachment.name}</span>
+                                    <span class="attachment-description">${attachment.description || ''}</span>
+                                    <button class="attachment-download" data-name="${attachment.name}">View</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                viewerContent += `</div>`;
+                viewer.innerHTML = viewerContent;
+                
+                // Add close functionality
+                const closeButton = viewer.querySelector('.close-viewer');
+                closeButton.addEventListener('click', function() {
+                    document.body.removeChild(viewer);
+                });
+                
+                // Add attachment handlers
+                const attachmentButtons = viewer.querySelectorAll('.attachment-download');
+                attachmentButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        alert(`Premium attachment: ${button.dataset.name}\n\nThis would download or display the attachment in a full implementation.`);
+                    });
+                });
+                
+                // Add to body
+                document.body.appendChild(viewer);
             }
 
             // Truncate long content for initial view
@@ -314,6 +373,84 @@
             padding: 20px;
             text-align: center;
             grid-column: 1 / -1;
+        }
+
+        .evidence-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .evidence-viewer-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .evidence-viewer-content.premium-content {
+            background-color: #f7f7f7;
+        }
+
+        .close-viewer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .evidence-viewer-title {
+            margin-top: 0;
+        }
+
+        .evidence-viewer-meta {
+            margin-bottom: 20px;
+        }
+
+        .evidence-viewer-body {
+            padding: 20px;
+            background-color: #f7f7f7;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .evidence-attachments {
+            margin-top: 20px;
+        }
+
+        .attachment-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .attachment-item:last-child {
+            border-bottom: none;
+        }
+
+        .attachment-icon {
+            margin-right: 10px;
+        }
+
+        .attachment-download {
+            background-color: #2c3e50;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .attachment-download:hover {
+            background-color: #34495e;
         }
 
         @media (max-width: 768px) {
