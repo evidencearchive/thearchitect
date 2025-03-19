@@ -1,0 +1,102 @@
+{
+  "case_files_index": {
+    "version": "1.0",
+    "last_updated": "2025-03-19",
+    "narrative_paths": {
+      "systemic_investigation": {
+        "name": "Systemic Investigation",
+        "description": "Case files focusing on regulatory failures, data integrity issues, and systemic vulnerabilities that enabled the XR-7734 fraud.",
+        "files": [
+          {
+            "id": "cf-systemic-001",
+            "title": "Regulatory Failure Analysis: XR-7734 Approval Process",
+            "path": "systemic-investigation-case.json",
+            "summary": "Analysis of systemic regulatory failures that enabled PharmaCorp's data manipulation to proceed undetected through multiple checkpoints."
+          }
+        ],
+        "related_evidence": ["pe001", "pe002", "pe005", "pe013", "pe018"]
+      },
+      "empathetic_resolution": {
+        "name": "Empathetic Resolution",
+        "description": "Case files exploring the human impact of the XR-7734 case, focusing on victims, families, and emotional dimensions of the tragedy.",
+        "files": [
+          {
+            "id": "cf-empathetic-001",
+            "title": "The Human Cost: Lives Behind the XR-7734 Data",
+            "path": "empathetic-resolution-case.json",
+            "summary": "Exploration of the individuals affected by XR-7734 – the patients who suffered, the families who lost loved ones, and the researchers caught in moral dilemmas."
+          }
+        ],
+        "related_evidence": ["pe003", "pe007", "pe011", "pe014"]
+      },
+      "moral_compromise": {
+        "name": "Moral Compromise",
+        "description": "Case files examining ethical gray zones, competing values, and moral dilemmas faced by various actors in the XR-7734 case.",
+        "files": [
+          {
+            "id": "cf-moral-001",
+            "title": "The Gray Zone: Ethical Compromises and Necessary Evils",
+            "path": "moral-compromise-case.json",
+            "summary": "Analysis of moral ambiguities surrounding the XR-7734 case, examining ethical gray zones where right and wrong become blurred."
+          }
+        ],
+        "related_evidence": ["pe006", "pe008", "pe009", "pe015"]
+      },
+      "hero_path": {
+        "name": "Hero Path",
+        "description": "Case files focusing on whistleblowers, investigators, and others who took principled stands against corporate corruption.",
+        "files": [
+          {
+            "id": "cf-hero-001",
+            "title": "Taking a Stand: The Path to Accountability and Justice",
+            "path": "hero-path-case.json",
+            "summary": "Examination of heroic actions of individuals who stood against corporate corruption in the XR-7734 case."
+          }
+        ],
+        "related_evidence": ["pe004", "pe008", "pe010", "pe012", "pe016"]
+      },
+      "join_path": {
+        "name": "Join Path",
+        "description": "Case files revealing deeper patterns and connections suggesting the XR-7734 case is part of a broader conspiracy.",
+        "files": [
+          {
+            "id": "cf-join-001",
+            "title": "The Architect's Invitation: Becoming Part of Something Greater",
+            "path": "join-path-case.json",
+            "summary": "Exploration of deeper patterns connecting the XR-7734 case to a broader network of corporate manipulation and systemic corruption."
+          }
+        ],
+        "related_evidence": ["pe004", "pe009", "pe012", "pe017"]
+      }
+    },
+    "premium_tiers": {
+      "investigator-toolkit": {
+        "name": "Investigator Toolkit",
+        "description": "Basic premium tier providing essential investigative tools and insights.",
+        "evidence_items": ["pe001", "pe002", "pe013", "pe018"]
+      },
+      "insider-access": {
+        "name": "Insider Access",
+        "description": "Mid-level premium tier providing access to confidential internal documents and personal accounts.",
+        "evidence_items": ["pe003", "pe004", "pe014"]
+      },
+      "architects-confidential": {
+        "name": "Architect's Confidential",
+        "description": "Highest premium tier providing access to The Architect's most sensitive analyses and deeply hidden evidence.",
+        "evidence_items": ["pe005", "pe006", "pe007", "pe008", "pe009", "pe010", "pe011", "pe012", "pe015", "pe016", "pe017"]
+      }
+    },
+    "tags": {
+      "regulatory": ["pe001", "pe005", "pe013", "pe018", "cf-systemic-001"],
+      "data-manipulation": ["pe001", "pe005", "pe006"],
+      "whistleblower": ["pe001", "pe006", "pe008", "pe016", "cf-hero-001"],
+      "patients": ["pe003", "pe014", "cf-empathetic-001"],
+      "ethics": ["pe015", "cf-moral-001"],
+      "human-impact": ["pe014", "cf-empathetic-001"],
+      "systemic-analysis": ["pe013", "cf-systemic-001"],
+      "conspiracy": ["pe017", "cf-join-001"],
+      "accountability": ["cf-hero-001"],
+      "moral-ambiguity": ["cf-moral-001"]
+    }
+  }
+}
