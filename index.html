@@ -127,10 +127,16 @@
         // Get API base URL based on environment
         function getApiBaseUrl() {
             const hostname = window.location.hostname;
+            console.log('Current hostname:', hostname);
             
             // Local development
             if (hostname === 'localhost' || hostname === '127.0.0.1') {
                 return 'http://localhost:3000/api';
+            }
+            
+            // GitHub Pages deployment
+            if (hostname.includes('github.io')) {
+                return 'https://decodingtests.com/api';
             }
             
             // Production
@@ -138,7 +144,7 @@
                 return 'https://decodingtests.com/api';
             }
             
-            // Staging or other environments
+            // Fallback - use relative path
             return '/api';
         }
         
@@ -258,10 +264,32 @@
                 showLoading(true);
                 
                 console.log('Loading evidence for:', authData.email);
-                console.log('Using API URL:', API_BASE_URL);
+                
+                // For GitHub Pages deployment, we need to use the main API endpoint
+                // since GitHub Pages can't handle API requests directly
+                const isGitHubPages = window.location.hostname.includes('github.io');
+                const apiUrl = isGitHubPages 
+                    ? 'https://decodingtests.com/api/external/get-content'
+                    : `${getApiBaseUrl()}/external/get-content`;
+                
+                console.log('Using API URL:', apiUrl);
+                
+                // Log full request details for debugging
+                console.log('Request details:', {
+                    url: apiUrl,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authData.token ? `Bearer ${authData.token}` : ''
+                    },
+                    body: {
+                        email: authData.email,
+                        contentType: 'evidence'
+                    }
+                });
                 
                 // Fetch evidence content directly from the API
-                const response = await fetch(`${API_BASE_URL}/external/get-content`, {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -273,7 +301,27 @@
                     })
                 });
                 
-                const data = await response.json();
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                // Clone the response so we can look at the raw text if needed
+                const responseClone = response.clone();
+                
+                if (!response.ok) {
+                    return responseClone.text().then(text => {
+                        console.error('Error response body:', text);
+                        throw new Error(`Server responded with status: ${response.status}`);
+                    });
+                }
+                
+                const data = await response.json().catch(error => {
+                    // If JSON parsing fails, get the raw text to see what's wrong
+                    return responseClone.text().then(text => {
+                        console.error('Failed to parse JSON. Raw response:', text);
+                        throw new Error('Invalid JSON response from server');
+                    });
+                });
+                
                 console.log('API response:', data);
                 
                 // Hide loading indicator
@@ -302,6 +350,7 @@
                 displayEvidenceContent(data.content);
             } catch (error) {
                 console.error('Error loading evidence content:', error);
+                showLoading(false);
                 showError('Failed to load evidence content. Please try again later.');
             }
         }
