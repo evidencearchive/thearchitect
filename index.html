@@ -277,7 +277,25 @@
                     body: requestBody
                 });
                 
-                // Fetch evidence content directly from the API
+                // First try with a preflight OPTIONS request to check CORS
+                try {
+                    console.log('Sending preflight check...');
+                    const preflightResponse = await fetch(apiUrl, {
+                        method: 'OPTIONS',
+                        headers: {
+                            'Access-Control-Request-Method': 'POST',
+                            'Access-Control-Request-Headers': 'Content-Type, Authorization'
+                        },
+                        mode: 'cors'
+                    });
+                    
+                    console.log('Preflight response status:', preflightResponse.status);
+                    console.log('Preflight response headers:', [...preflightResponse.headers.entries()]);
+                } catch (preflightError) {
+                    console.warn('Preflight request failed, but continuing with main request:', preflightError);
+                }
+                
+                // Use mode: 'cors' explicitly and include credentials
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
@@ -285,6 +303,7 @@
                         'Authorization': authData.token ? `Bearer ${authData.token}` : ''
                     },
                     body: JSON.stringify(requestBody),
+                    mode: 'cors',
                     credentials: 'include' // Include cookies for cross-origin requests
                 });
                 
