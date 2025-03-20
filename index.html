@@ -105,8 +105,11 @@
                 // Check if player is authenticated
                 const authData = getPlayerAuth();
                 
+                // Debug information
+                console.log('Auth data:', authData);
+                
                 if (!authData || !authData.email) {
-                    showError('Authentication required. Please access this page through the main game experience.');
+                    showError('Authentication required. Please access this page through the official Decoding Death investigation portal.');
                     return;
                 }
                 
@@ -146,6 +149,8 @@
             const email = urlParams.get('email');
             const token = urlParams.get('token');
             
+            console.log('URL params:', { email, token: token ? 'Present' : 'Not present' });
+            
             if (email) {
                 // Store in localStorage for future use
                 localStorage.setItem('playerEmail', email);
@@ -160,6 +165,11 @@
             // If not in URL, try localStorage
             const storedEmail = localStorage.getItem('playerEmail');
             const storedToken = localStorage.getItem('playerToken');
+            
+            console.log('localStorage:', { 
+                storedEmail, 
+                storedToken: storedToken ? 'Present' : 'Not present' 
+            });
             
             if (storedEmail) {
                 return { 
@@ -247,6 +257,9 @@
             try {
                 showLoading(true);
                 
+                console.log('Loading evidence for:', authData.email);
+                console.log('Using API URL:', API_BASE_URL);
+                
                 // Fetch evidence content directly from the API
                 const response = await fetch(`${API_BASE_URL}/external/get-content`, {
                     method: 'POST',
@@ -261,6 +274,7 @@
                 });
                 
                 const data = await response.json();
+                console.log('API response:', data);
                 
                 // Hide loading indicator
                 showLoading(false);
