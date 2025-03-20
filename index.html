@@ -139,8 +139,8 @@
                 return 'https://decodingtests.com/api';
             }
             
-            // Fallback - use relative path
-            return '/api';
+            // GitHub Pages deployment - use production API
+            return 'https://decodingtests.com/api';
         }
         
         // Get player authentication data from URL or localStorage
@@ -264,6 +264,13 @@
                 const apiUrl = `${getApiBaseUrl()}/external/get-content`;
                 console.log('Using API URL:', apiUrl);
                 
+                // Create the request body with the correct field names
+                // Backend expects 'playerEmail' not 'email'
+                const requestBody = {
+                    playerEmail: authData.email,
+                    contentType: 'evidence'
+                };
+                
                 // Log full request details for debugging
                 console.log('Request details:', {
                     url: apiUrl,
@@ -272,10 +279,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': authData.token ? `Bearer ${authData.token}` : ''
                     },
-                    body: {
-                        email: authData.email,
-                        contentType: 'evidence'
-                    }
+                    body: requestBody
                 });
                 
                 // Fetch evidence content directly from the API
@@ -285,10 +289,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': authData.token ? `Bearer ${authData.token}` : ''
                     },
-                    body: JSON.stringify({
-                        email: authData.email,
-                        contentType: 'evidence'
-                    }),
+                    body: JSON.stringify(requestBody),
                     credentials: 'include' // Include cookies for cross-origin requests
                 });
                 
