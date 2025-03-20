@@ -265,13 +265,64 @@
                 
                 console.log('Loading evidence for:', authData.email);
                 
-                // For GitHub Pages deployment, we need to use the main API endpoint
-                // since GitHub Pages can't handle API requests directly
+                // For GitHub Pages deployment, we need to use JSONP or a proxy approach
+                // since direct API calls will be blocked by CORS
                 const isGitHubPages = window.location.hostname.includes('github.io');
-                const apiUrl = isGitHubPages 
-                    ? 'https://decodingtests.com/api/external/get-content'
-                    : `${getApiBaseUrl()}/external/get-content`;
                 
+                if (isGitHubPages) {
+                    // Use a direct URL with authentication parameters for GitHub Pages
+                    // This assumes the backend API is configured to accept these parameters
+                    const evidenceUrl = `https://decodingtests.com/api/external/get-content?email=${encodeURIComponent(authData.email)}&token=${encodeURIComponent(authData.token || '')}&contentType=evidence`;
+                    
+                    console.log('Using direct URL with parameters:', evidenceUrl);
+                    
+                    // Create a script element for JSONP-like approach
+                    const script = document.createElement('script');
+                    script.src = evidenceUrl;
+                    
+                    // Define a global callback function
+                    window.handleEvidenceContent = function(data) {
+                        console.log('Received data via JSONP:', data);
+                        showLoading(false);
+                        
+                        if (!data.success) {
+                            showError(data.error || 'Failed to load evidence content');
+                            return;
+                        }
+                        
+                        if (data.message === 'Evidence archive requires premium access') {
+                            showPremiumOverlay();
+                            return;
+                        }
+                        
+                        if (!data.content || data.content.length === 0) {
+                            showNoContentMessage();
+                            return;
+                        }
+                        
+                        displayEvidenceContent(data.content);
+                        
+                        // Clean up
+                        document.body.removeChild(script);
+                        delete window.handleEvidenceContent;
+                    };
+                    
+                    // Add error handling
+                    script.onerror = function() {
+                        console.error('Failed to load evidence content via JSONP');
+                        showLoading(false);
+                        showError('Failed to load evidence content. Please try again later.');
+                        document.body.removeChild(script);
+                        delete window.handleEvidenceContent;
+                    };
+                    
+                    // Add the script to the document
+                    document.body.appendChild(script);
+                    return;
+                }
+                
+                // Standard API approach for non-GitHub Pages environments
+                const apiUrl = `${getApiBaseUrl()}/external/get-content`;
                 console.log('Using API URL:', apiUrl);
                 
                 // Log full request details for debugging
