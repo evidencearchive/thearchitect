@@ -5,68 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Evidence Archive | Decoding Death Investigation</title>
     <link rel="stylesheet" href="evidence-styles.css">
-    <!-- Load API proxy script with a more robust approach -->
-    <script>
-        // Dynamically load the API proxy script
-        (function() {
-            function loadApiProxy() {
-                // Try different possible paths to find the API proxy
-                const possiblePaths = [
-                    '../decoding-death-website/api-proxy.js',
-                    '../../decoding-death-website/api-proxy.js',
-                    '/decoding-death-website/api-proxy.js'
-                ];
-                
-                function tryLoadScript(paths, index) {
-                    if (index >= paths.length) {
-                        console.error('Failed to load API Proxy script from any path');
-                        showApiError();
-                        return;
-                    }
-                    
-                    const script = document.createElement('script');
-                    script.src = paths[index];
-                    script.onload = function() {
-                        console.log('API Proxy loaded successfully from: ' + paths[index]);
-                    };
-                    script.onerror = function() {
-                        console.warn('Failed to load API Proxy from: ' + paths[index]);
-                        tryLoadScript(paths, index + 1);
-                    };
-                    document.head.appendChild(script);
-                }
-                
-                tryLoadScript(possiblePaths, 0);
-            }
-            
-            function showApiError() {
-                // Show error message when page loads if API proxy fails to load
-                window.addEventListener('DOMContentLoaded', function() {
-                    const errorContainer = document.getElementById('error-container');
-                    if (errorContainer) {
-                        errorContainer.classList.remove('hidden');
-                        errorContainer.innerHTML = `
-                            <div class="error-message">
-                                <p>Failed to load API services. Please try accessing this page through the main game experience.</p>
-                                <button id="retry-button">Retry</button>
-                            </div>
-                        `;
-                        
-                        document.getElementById('retry-button').addEventListener('click', function() {
-                            window.location.reload();
-                        });
-                    }
-                });
-            }
-            
-            loadApiProxy();
-        })();
-    </script>
 </head>
 <body>
     <div class="page-container">
         <!-- Error container for API loading issues -->
-        <div id="error-container" class="hidden"></div>
+        <div id="error-container" class="hidden">
+            <div class="error-message">
+                <p id="error-message">An error occurred. Please try again.</p>
+                <button id="retry-button">Retry</button>
+            </div>
+        </div>
         
         <header class="evidence-header">
             <div class="header-content">
@@ -126,21 +74,34 @@
         </div>
     </div>
 
+    <!-- Evidence Modal -->
+    <div id="evidence-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div id="modal-content-container">
+                <!-- Modal content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global variables
-        let apiProxy = null;
         const evidenceGrid = document.getElementById('evidence-grid');
         const loadingIndicator = document.getElementById('loading-indicator');
         const errorContainer = document.getElementById('error-container');
         const errorMessage = document.getElementById('error-message');
         const retryButton = document.getElementById('retry-button');
+        const evidenceModal = document.getElementById('evidence-modal');
+        const modalContentContainer = document.getElementById('modal-content-container');
+        const premiumOverlay = document.getElementById('premium-overlay');
+        const closePremiumButton = document.getElementById('close-premium-overlay');
+        
+        // Base API URL - adjust based on environment
+        const API_BASE_URL = getApiBaseUrl();
         
         // Initialize the page
         async function initPage() {
             try {
-                // Try to load the API proxy script
-                await loadApiProxy();
-                
                 // Check if player is authenticated
                 const authData = getPlayerAuth();
                 
@@ -153,69 +114,29 @@
                 setupEventListeners();
                 
                 // Load evidence content
-                await loadEvidenceContent();
+                await loadEvidenceContent(authData);
             } catch (error) {
                 console.error('Initialization error:', error);
                 showError(error.message || 'Failed to initialize the evidence archive. Please try again later.');
             }
         }
         
-        // Load the API proxy script dynamically
-        async function loadApiProxy() {
-            return new Promise((resolve, reject) => {
-                // Try multiple possible paths for the API proxy
-                const possiblePaths = [
-                    '/api-proxy.js',
-                    '../api-proxy.js',
-                    '../../api-proxy.js',
-                    '/assets/js/api-proxy.js',
-                    '../assets/js/api-proxy.js'
-                ];
-                
-                let loadAttempts = 0;
-                let scriptLoaded = false;
-                
-                // Try each path until one works
-                for (const path of possiblePaths) {
-                    const script = document.createElement('script');
-                    script.src = path;
-                    script.async = true;
-                    
-                    script.onload = () => {
-                        if (!scriptLoaded) {
-                            scriptLoaded = true;
-                            console.log(`API proxy loaded from: ${path}`);
-                            
-                            // Initialize the API proxy
-                            if (typeof ApiProxy !== 'undefined') {
-                                apiProxy = new ApiProxy();
-                                resolve();
-                            } else {
-                                reject(new Error('API proxy loaded but ApiProxy class not found'));
-                            }
-                        }
-                    };
-                    
-                    script.onerror = () => {
-                        loadAttempts++;
-                        console.warn(`Failed to load API proxy from: ${path}`);
-                        
-                        // If all paths have been tried and none worked
-                        if (loadAttempts === possiblePaths.length && !scriptLoaded) {
-                            reject(new Error('Could not load API proxy from any path'));
-                        }
-                    };
-                    
-                    document.head.appendChild(script);
-                }
-                
-                // Set a timeout in case none of the scripts load or resolve
-                setTimeout(() => {
-                    if (!scriptLoaded) {
-                        reject(new Error('API proxy loading timed out'));
-                    }
-                }, 5000);
-            });
+        // Get API base URL based on environment
+        function getApiBaseUrl() {
+            const hostname = window.location.hostname;
+            
+            // Local development
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:3000/api';
+            }
+            
+            // Production
+            if (hostname.includes('decodingtests.com')) {
+                return 'https://decodingtests.com/api';
+            }
+            
+            // Staging or other environments
+            return '/api';
         }
         
         // Get player authentication data from URL or localStorage
@@ -260,9 +181,8 @@
             });
             
             // Close modal when clicking outside
-            document.addEventListener('click', (e) => {
-                const modal = document.getElementById('evidence-modal');
-                if (modal && e.target === modal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === evidenceModal) {
                     closeEvidenceModal();
                 }
             });
@@ -273,6 +193,32 @@
                     closeEvidenceModal();
                 }
             });
+            
+            // Close premium overlay
+            if (closePremiumButton) {
+                closePremiumButton.addEventListener('click', () => {
+                    premiumOverlay.classList.add('hidden');
+                    showNoContentMessage();
+                });
+            }
+            
+            // Premium upgrade buttons
+            const upgradeButtons = document.querySelectorAll('.premium-button');
+            upgradeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tier = button.getAttribute('data-tier');
+                    const authData = getPlayerAuth();
+                    if (authData && authData.email) {
+                        window.location.href = `../premium-upgrade/?tier=${tier}&email=${encodeURIComponent(authData.email)}`;
+                    }
+                });
+            });
+            
+            // Close button in modal
+            const closeButton = document.querySelector('#evidence-modal .close-button');
+            if (closeButton) {
+                closeButton.addEventListener('click', closeEvidenceModal);
+            }
         }
         
         // Show loading indicator
@@ -287,102 +233,59 @@
         // Show error message
         function showError(message) {
             errorMessage.textContent = message;
-            errorContainer.style.display = 'flex';
+            errorContainer.classList.remove('hidden');
             showLoading(false);
         }
         
         // Hide error message
         function hideError() {
-            errorContainer.style.display = 'none';
-        }
-        
-        // Open evidence modal with details
-        function openEvidenceModal(item) {
-            // Create modal if it doesn't exist
-            let modal = document.getElementById('evidence-modal');
-            
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'evidence-modal';
-                modal.classList.add('modal');
-                document.body.appendChild(modal);
-            }
-            
-            // Format the date
-            const dateStr = item.date || item.created_at || 'Unknown Date';
-            let formattedDate;
-            try {
-                const date = new Date(dateStr);
-                formattedDate = date.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                });
-            } catch (e) {
-                formattedDate = dateStr;
-            }
-            
-            // Populate modal content
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <span class="close-button">&times;</span>
-                    <div class="modal-header">
-                        <h2>${item.title || 'Untitled Evidence'}</h2>
-                        ${item.is_premium ? '<span class="premium-badge">Premium</span>' : ''}
-                    </div>
-                    <div class="modal-meta">
-                        <span class="evidence-date">${formattedDate}</span>
-                        ${item.file_type ? `<span class="evidence-type">${item.file_type}</span>` : ''}
-                    </div>
-                    <div class="modal-body">
-                        <p>${item.content || 'No content available'}</p>
-                    </div>
-                </div>
-            `;
-            
-            // Show the modal
-            modal.style.display = 'flex';
-            
-            // Add close button event listener
-            const closeButton = modal.querySelector('.close-button');
-            if (closeButton) {
-                closeButton.addEventListener('click', closeEvidenceModal);
-            }
+            errorContainer.classList.add('hidden');
         }
         
         // Load evidence content from the API
-        async function loadEvidenceContent() {
+        async function loadEvidenceContent(authData) {
             try {
                 showLoading(true);
                 
-                // Get player authentication data
-                const authData = getPlayerAuth();
-                if (!authData || !authData.email) {
-                    showError('Authentication required. Please access this page through the main game experience.');
-                    return;
-                }
+                // Fetch evidence content directly from the API
+                const response = await fetch(`${API_BASE_URL}/external/get-content`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authData.token ? `Bearer ${authData.token}` : ''
+                    },
+                    body: JSON.stringify({
+                        email: authData.email,
+                        contentType: 'evidence'
+                    })
+                });
                 
-                // Fetch evidence content from the API
-                const response = await apiProxy.fetchContent('evidence', authData.email);
+                const data = await response.json();
                 
                 // Hide loading indicator
                 showLoading(false);
                 
+                // Handle API response
+                if (!data.success) {
+                    showError(data.error || 'Failed to load evidence content');
+                    return;
+                }
+                
                 // Check if the response indicates premium access is required
-                if (response.message === 'Evidence archive requires premium access') {
+                if (data.message === 'Evidence archive requires premium access') {
                     // Show premium upgrade overlay
                     showPremiumOverlay();
                     return;
                 }
                 
                 // Check if we have content
-                if (!response.content || response.content.length === 0) {
+                if (!data.content || data.content.length === 0) {
                     showNoContentMessage();
                     return;
                 }
                 
                 // Display the evidence content
-                displayEvidenceContent(response.content);
+                displayEvidenceContent(data.content);
             } catch (error) {
                 console.error('Error loading evidence content:', error);
                 showError('Failed to load evidence content. Please try again later.');
@@ -467,27 +370,8 @@
         
         // Show premium upgrade overlay
         function showPremiumOverlay() {
-            const premiumOverlay = document.getElementById('premium-overlay');
             if (premiumOverlay) {
                 premiumOverlay.classList.remove('hidden');
-                
-                // Set up close button
-                const closeButton = document.getElementById('close-premium-overlay');
-                if (closeButton) {
-                    closeButton.addEventListener('click', () => {
-                        premiumOverlay.classList.add('hidden');
-                        showNoContentMessage();
-                    });
-                }
-                
-                // Set up upgrade buttons
-                const upgradeButtons = document.querySelectorAll('.premium-button');
-                upgradeButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        const tier = button.getAttribute('data-tier');
-                        window.location.href = `../premium-upgrade/?tier=${tier}&email=${encodeURIComponent(getPlayerAuth().email)}`;
-                    });
-                });
             } else {
                 // If overlay doesn't exist, show a message in the grid
                 evidenceGrid.innerHTML = `
@@ -501,12 +385,44 @@
             }
         }
         
+        // Open evidence modal with details
+        function openEvidenceModal(item) {
+            // Format the date
+            const dateStr = item.date || item.created_at || 'Unknown Date';
+            let formattedDate;
+            try {
+                const date = new Date(dateStr);
+                formattedDate = date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            } catch (e) {
+                formattedDate = dateStr;
+            }
+            
+            // Populate modal content
+            modalContentContainer.innerHTML = `
+                <div class="modal-header">
+                    <h2>${item.title || 'Untitled Evidence'}</h2>
+                    ${item.is_premium ? '<span class="premium-badge">Premium</span>' : ''}
+                </div>
+                <div class="modal-meta">
+                    <span class="evidence-date">${formattedDate}</span>
+                    ${item.file_type ? `<span class="evidence-type">${item.file_type}</span>` : ''}
+                </div>
+                <div class="modal-body">
+                    <p>${item.content || 'No content available'}</p>
+                </div>
+            `;
+            
+            // Show the modal
+            evidenceModal.classList.remove('hidden');
+        }
+        
         // Close the evidence modal
         function closeEvidenceModal() {
-            const modal = document.getElementById('evidence-modal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
+            evidenceModal.classList.add('hidden');
         }
         
         // Initialize the page when DOM is loaded
