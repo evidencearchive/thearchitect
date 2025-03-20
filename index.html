@@ -134,13 +134,8 @@
                 return 'http://localhost:3000/api';
             }
             
-            // Production
-            if (hostname.includes('decodingtests.com')) {
-                return 'https://decodingtests.com/api';
-            }
-            
-            // GitHub Pages deployment - use production API
-            return 'https://decodingtests.com/api';
+            // Production - use the correct backend API URL
+            return 'https://decoding-death-backend.vercel.app/api';
         }
         
         // Get player authentication data from URL or localStorage
@@ -261,11 +256,11 @@
                 console.log('Loading evidence for:', authData.email);
                 
                 // Get the appropriate API URL based on environment
-                const apiUrl = `${getApiBaseUrl()}/external/get-content`;
+                const apiBaseUrl = getApiBaseUrl();
+                const apiUrl = `${apiBaseUrl}/external/get-content`;
                 console.log('Using API URL:', apiUrl);
                 
                 // Create the request body with the correct field names
-                // Backend expects 'playerEmail' not 'email'
                 const requestBody = {
                     playerEmail: authData.email,
                     contentType: 'evidence'
