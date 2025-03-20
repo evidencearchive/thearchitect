@@ -41,7 +41,7 @@ const IGNORE_PATTERNS = [
   /package-lock\.json$/,
   /\.next\//,
   /\.husky\//,
-  /check-credentials\.js$/
+  /scripts\/check-credentials\.js$/  // Ignore the credential scanner itself
 ];
 
 // Lines to ignore (false positives)
@@ -59,6 +59,8 @@ const IGNORE_LINES = [
   /process\.env\.\w+\s*\|\|\s*['"][\w-]+-placeholder['"]/,
   // Example JWT tokens in documentation
   /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\./,
+  // Regex patterns in code
+  /\/eyJ.*\.eyJ.*\//
 ];
 
 // Get staged files
