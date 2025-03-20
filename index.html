@@ -126,15 +126,7 @@
         
         // Get API base URL based on environment
         function getApiBaseUrl() {
-            const hostname = window.location.hostname;
-            console.log('Current hostname:', hostname);
-            
-            // Local development
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                return 'http://localhost:3000/api';
-            }
-            
-            // Production - use the correct backend API URL
+            // Use the production backend URL
             return 'https://decoding-death-backend.vercel.app/api';
         }
         
@@ -257,107 +249,68 @@
                 
                 // Get the appropriate API URL based on environment
                 const apiBaseUrl = getApiBaseUrl();
-                const apiUrl = `${apiBaseUrl}/external/get-content`;
-                console.log('Using API URL:', apiUrl);
                 
-                // Create the request body with the correct field names
-                const requestBody = {
-                    playerEmail: authData.email,
-                    contentType: 'evidence'
-                };
+                // Use a JSONP-like approach with no-cors mode to avoid preflight
+                // Create a unique callback name
+                const callbackName = 'evidenceCallback_' + Math.random().toString(36).substr(2, 9);
                 
-                // Log full request details for debugging
-                console.log('Request details:', {
-                    url: apiUrl,
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authData.token ? `Bearer ${authData.token}` : ''
-                    },
-                    body: requestBody
-                });
-                
-                // First try with a preflight OPTIONS request to check CORS
-                try {
-                    console.log('Sending preflight check...');
-                    const preflightResponse = await fetch(apiUrl, {
-                        method: 'OPTIONS',
-                        headers: {
-                            'Access-Control-Request-Method': 'POST',
-                            'Access-Control-Request-Headers': 'Content-Type, Authorization'
-                        },
-                        mode: 'cors'
-                    });
+                // Create a promise that will be resolved when the callback is called
+                const responsePromise = new Promise((resolve, reject) => {
+                    // Set up the global callback function
+                    window[callbackName] = function(data) {
+                        resolve(data);
+                        // Clean up
+                        delete window[callbackName];
+                        document.body.removeChild(script);
+                    };
                     
-                    console.log('Preflight response status:', preflightResponse.status);
-                    console.log('Preflight response headers:', [...preflightResponse.headers.entries()]);
-                } catch (preflightError) {
-                    console.warn('Preflight request failed, but continuing with main request:', preflightError);
-                }
-                
-                // Use mode: 'cors' explicitly and include credentials
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authData.token ? `Bearer ${authData.token}` : ''
-                    },
-                    body: JSON.stringify(requestBody),
-                    mode: 'cors',
-                    credentials: 'include' // Include cookies for cross-origin requests
+                    // Set a timeout to reject the promise if the callback is not called
+                    setTimeout(() => {
+                        if (window[callbackName]) {
+                            delete window[callbackName];
+                            document.body.removeChild(script);
+                            reject(new Error('Request timed out'));
+                        }
+                    }, 10000); // 10 seconds timeout
                 });
                 
-                console.log('Response status:', response.status);
-                console.log('Response headers:', [...response.headers.entries()]);
+                // Create a script element to load the data
+                const script = document.createElement('script');
                 
-                // Clone the response so we can look at the raw text if needed
-                const responseClone = response.clone();
-                
-                if (!response.ok) {
-                    return responseClone.text().then(text => {
-                        console.error('Error response body:', text);
-                        throw new Error(`Server responded with status: ${response.status}`);
-                    });
-                }
-                
-                const data = await response.json().catch(error => {
-                    // If JSON parsing fails, get the raw text to see what's wrong
-                    return responseClone.text().then(text => {
-                        console.error('Failed to parse JSON. Raw response:', text);
-                        throw new Error('Invalid JSON response from server');
-                    });
+                // Construct the URL with query parameters instead of using a POST request
+                const params = new URLSearchParams({
+                    email: authData.email,
+                    contentType: 'evidence',
+                    token: authData.token || '',
+                    callback: callbackName
                 });
                 
-                console.log('API response:', data);
+                script.src = `${apiBaseUrl}/external/get-content-jsonp?${params.toString()}`;
                 
-                // Hide loading indicator
-                showLoading(false);
+                // Append the script to the document
+                document.body.appendChild(script);
                 
-                // Handle API response
-                if (!data.success) {
-                    showError(data.error || 'Failed to load evidence content');
-                    return;
-                }
+                // Wait for the callback to be called
+                const result = await responsePromise;
                 
-                // Check if the response indicates premium access is required
-                if (data.message === 'Evidence archive requires premium access') {
-                    // Show premium upgrade overlay
-                    showPremiumOverlay();
-                    return;
-                }
-                
-                // Check if we have content
-                if (!data.content || data.content.length === 0) {
-                    showNoContentMessage();
+                // Process the result
+                if (!result.success) {
+                    console.error('Error loading evidence:', result.error || result.message);
+                    if (result.requiresAuth) {
+                        showAuthError();
+                    } else {
+                        showError('Failed to load evidence content. Please try again later.');
+                    }
                     return;
                 }
                 
                 // Display the evidence content
-                displayEvidenceContent(data.content);
+                displayEvidenceContent(result.content);
             } catch (error) {
                 console.error('Error loading evidence content:', error);
-                showLoading(false);
                 showError('Failed to load evidence content. Please try again later.');
+            } finally {
+                showLoading(false);
             }
         }
         
