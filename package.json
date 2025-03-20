@@ -1,0 +1,13 @@
+{
+  "name": "evidence-archive",
+  "version": "1.0.0",
+  "description": "Evidence Archive for Decoding Death",
+  "scripts": {
+    "check-credentials": "node scripts/check-credentials.js",
+    "precommit": "node scripts/check-credentials.js --pre-commit",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11"
+  }
+}
