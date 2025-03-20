@@ -11,8 +11,8 @@ const { execSync } = require('child_process');
 
 // Patterns to detect potential credentials
 const CREDENTIAL_PATTERNS = [
-  // Supabase keys (JWT format)
-  /eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+/,
+  // Supabase keys (JWT format) - using a safer pattern that won't match itself
+  /eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}/,
   
   // Stripe keys
   /sk_(test|live)_[0-9a-zA-Z]{24,}/,
