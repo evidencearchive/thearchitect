@@ -127,512 +127,390 @@
     </div>
 
     <script>
-        // Wait for DOM content to be loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if API Proxy is available
-            if (typeof ApiProxy === 'undefined') {
-                console.error('API Proxy not available. Cannot proceed with authentication.');
-                showError('API services are not available. Please try accessing this page through the main game experience.');
-                return;
-            }
-
-            // Initialize API proxy
-            const apiProxy = new ApiProxy();
-            
-            // Initialize the page
-            initPage();
-            
-            // Main initialization function
-            async function initPage() {
-                try {
-                    // Show loading state
-                    showLoading(true);
-                    
-                    // Check authentication
-                    const authData = getPlayerAuth();
-                    
-                    if (!authData || !authData.token) {
-                        // No authentication token found, try to generate one
-                        await generateAuthToken();
-                    } else {
-                        // Validate the existing token
-                        const isValid = await validateToken(authData.token);
-                        if (!isValid) {
-                            // Token is invalid, generate a new one
-                            await generateAuthToken();
-                        }
-                    }
-                    
-                    // Load evidence content
-                    await loadEvidenceContent();
-                    
-                    // Set up event listeners
-                    setupEventListeners();
-                    
-                    // Hide loading state
-                    showLoading(false);
-                } catch (error) {
-                    console.error('Initialization error:', error);
-                    showError('Failed to initialize the evidence archive. Please refresh the page or contact support.');
-                    showLoading(false);
-                }
-            }
-            
-            // Set up event listeners for interactive elements
-            function setupEventListeners() {
-                // Handle premium upgrade buttons
-                document.querySelectorAll('.premium-button').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const tier = this.getAttribute('data-tier');
-                        upgradeToPremium(tier);
-                        hidePremiumOverlay();
-                    });
-                });
+        // Global variables
+        let apiProxy = null;
+        const evidenceGrid = document.getElementById('evidence-grid');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const retryButton = document.getElementById('retry-button');
+        
+        // Initialize the page
+        async function initPage() {
+            try {
+                // Try to load the API proxy script
+                await loadApiProxy();
                 
-                // Close premium overlay when close button is clicked
+                // Check if player is authenticated
+                const authData = getPlayerAuth();
+                
+                if (!authData || !authData.email) {
+                    showError('Authentication required. Please access this page through the main game experience.');
+                    return;
+                }
+                
+                // Set up event listeners
+                setupEventListeners();
+                
+                // Load evidence content
+                await loadEvidenceContent();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError(error.message || 'Failed to initialize the evidence archive. Please try again later.');
+            }
+        }
+        
+        // Load the API proxy script dynamically
+        async function loadApiProxy() {
+            return new Promise((resolve, reject) => {
+                // Try multiple possible paths for the API proxy
+                const possiblePaths = [
+                    '/api-proxy.js',
+                    '../api-proxy.js',
+                    '../../api-proxy.js',
+                    '/assets/js/api-proxy.js',
+                    '../assets/js/api-proxy.js'
+                ];
+                
+                let loadAttempts = 0;
+                let scriptLoaded = false;
+                
+                // Try each path until one works
+                for (const path of possiblePaths) {
+                    const script = document.createElement('script');
+                    script.src = path;
+                    script.async = true;
+                    
+                    script.onload = () => {
+                        if (!scriptLoaded) {
+                            scriptLoaded = true;
+                            console.log(`API proxy loaded from: ${path}`);
+                            
+                            // Initialize the API proxy
+                            if (typeof ApiProxy !== 'undefined') {
+                                apiProxy = new ApiProxy();
+                                resolve();
+                            } else {
+                                reject(new Error('API proxy loaded but ApiProxy class not found'));
+                            }
+                        }
+                    };
+                    
+                    script.onerror = () => {
+                        loadAttempts++;
+                        console.warn(`Failed to load API proxy from: ${path}`);
+                        
+                        // If all paths have been tried and none worked
+                        if (loadAttempts === possiblePaths.length && !scriptLoaded) {
+                            reject(new Error('Could not load API proxy from any path'));
+                        }
+                    };
+                    
+                    document.head.appendChild(script);
+                }
+                
+                // Set a timeout in case none of the scripts load or resolve
+                setTimeout(() => {
+                    if (!scriptLoaded) {
+                        reject(new Error('API proxy loading timed out'));
+                    }
+                }, 5000);
+            });
+        }
+        
+        // Get player authentication data from URL or localStorage
+        function getPlayerAuth() {
+            // Try to get from URL parameters first
+            const urlParams = new URLSearchParams(window.location.search);
+            const email = urlParams.get('email');
+            const token = urlParams.get('token');
+            
+            if (email) {
+                // Store in localStorage for future use
+                localStorage.setItem('playerEmail', email);
+                
+                if (token) {
+                    localStorage.setItem('playerToken', token);
+                }
+                
+                return { email, token };
+            }
+            
+            // If not in URL, try localStorage
+            const storedEmail = localStorage.getItem('playerEmail');
+            const storedToken = localStorage.getItem('playerToken');
+            
+            if (storedEmail) {
+                return { 
+                    email: storedEmail, 
+                    token: storedToken 
+                };
+            }
+            
+            // No authentication data found
+            return null;
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // Retry button
+            retryButton.addEventListener('click', () => {
+                hideError();
+                initPage();
+            });
+            
+            // Close modal when clicking outside
+            document.addEventListener('click', (e) => {
+                const modal = document.getElementById('evidence-modal');
+                if (modal && e.target === modal) {
+                    closeEvidenceModal();
+                }
+            });
+            
+            // Close modal with escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeEvidenceModal();
+                }
+            });
+        }
+        
+        // Show loading indicator
+        function showLoading(show) {
+            if (show) {
+                loadingIndicator.style.display = 'flex';
+            } else {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+        
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorContainer.style.display = 'flex';
+            showLoading(false);
+        }
+        
+        // Hide error message
+        function hideError() {
+            errorContainer.style.display = 'none';
+        }
+        
+        // Open evidence modal with details
+        function openEvidenceModal(item) {
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('evidence-modal');
+            
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'evidence-modal';
+                modal.classList.add('modal');
+                document.body.appendChild(modal);
+            }
+            
+            // Format the date
+            const dateStr = item.date || item.created_at || 'Unknown Date';
+            let formattedDate;
+            try {
+                const date = new Date(dateStr);
+                formattedDate = date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            } catch (e) {
+                formattedDate = dateStr;
+            }
+            
+            // Populate modal content
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <div class="modal-header">
+                        <h2>${item.title || 'Untitled Evidence'}</h2>
+                        ${item.is_premium ? '<span class="premium-badge">Premium</span>' : ''}
+                    </div>
+                    <div class="modal-meta">
+                        <span class="evidence-date">${formattedDate}</span>
+                        ${item.file_type ? `<span class="evidence-type">${item.file_type}</span>` : ''}
+                    </div>
+                    <div class="modal-body">
+                        <p>${item.content || 'No content available'}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Show the modal
+            modal.style.display = 'flex';
+            
+            // Add close button event listener
+            const closeButton = modal.querySelector('.close-button');
+            if (closeButton) {
+                closeButton.addEventListener('click', closeEvidenceModal);
+            }
+        }
+        
+        // Load evidence content from the API
+        async function loadEvidenceContent() {
+            try {
+                showLoading(true);
+                
+                // Get player authentication data
+                const authData = getPlayerAuth();
+                if (!authData || !authData.email) {
+                    showError('Authentication required. Please access this page through the main game experience.');
+                    return;
+                }
+                
+                // Fetch evidence content from the API
+                const response = await apiProxy.fetchContent('evidence', authData.email);
+                
+                // Hide loading indicator
+                showLoading(false);
+                
+                // Check if the response indicates premium access is required
+                if (response.message === 'Evidence archive requires premium access') {
+                    // Show premium upgrade overlay
+                    showPremiumOverlay();
+                    return;
+                }
+                
+                // Check if we have content
+                if (!response.content || response.content.length === 0) {
+                    showNoContentMessage();
+                    return;
+                }
+                
+                // Display the evidence content
+                displayEvidenceContent(response.content);
+            } catch (error) {
+                console.error('Error loading evidence content:', error);
+                showError('Failed to load evidence content. Please try again later.');
+            }
+        }
+        
+        // Display evidence content in the grid
+        function displayEvidenceContent(evidenceItems) {
+            // Clear the grid first
+            evidenceGrid.innerHTML = '';
+            
+            // Sort items by date (newest first)
+            evidenceItems.sort((a, b) => {
+                const dateA = new Date(a.date || a.created_at || 0);
+                const dateB = new Date(b.date || b.created_at || 0);
+                return dateB - dateA;
+            });
+            
+            // Create evidence cards
+            evidenceItems.forEach(item => {
+                const card = createEvidenceCard(item);
+                evidenceGrid.appendChild(card);
+            });
+        }
+        
+        // Create an evidence card element
+        function createEvidenceCard(item) {
+            const card = document.createElement('div');
+            card.className = 'evidence-card';
+            if (item.is_premium) {
+                card.classList.add('premium-evidence');
+            }
+            
+            // Format the date
+            const dateStr = item.date || item.created_at || 'Unknown Date';
+            let formattedDate;
+            try {
+                const date = new Date(dateStr);
+                formattedDate = date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            } catch (e) {
+                formattedDate = dateStr;
+            }
+            
+            // Create card content
+            card.innerHTML = `
+                <div class="evidence-header">
+                    <h3 class="evidence-title">${item.title || 'Untitled Evidence'}</h3>
+                    ${item.is_premium ? '<span class="premium-badge">Premium</span>' : ''}
+                </div>
+                <div class="evidence-meta">
+                    <span class="evidence-date">${formattedDate}</span>
+                    ${item.file_type ? `<span class="evidence-type">${item.file_type}</span>` : ''}
+                </div>
+                <div class="evidence-preview">
+                    <p>${item.content ? item.content.substring(0, 100) + '...' : 'No content available'}</p>
+                </div>
+                <button class="view-button">View Details</button>
+            `;
+            
+            // Add click event to open modal
+            card.querySelector('.view-button').addEventListener('click', () => {
+                openEvidenceModal(item);
+            });
+            
+            return card;
+        }
+        
+        // Show a message when no content is available
+        function showNoContentMessage() {
+            evidenceGrid.innerHTML = `
+                <div class="no-content-message">
+                    <h3>No Evidence Available</h3>
+                    <p>No evidence files have been discovered yet in your investigation.</p>
+                    <p>Continue exploring the case to uncover new evidence.</p>
+                </div>
+            `;
+        }
+        
+        // Show premium upgrade overlay
+        function showPremiumOverlay() {
+            const premiumOverlay = document.getElementById('premium-overlay');
+            if (premiumOverlay) {
+                premiumOverlay.classList.remove('hidden');
+                
+                // Set up close button
                 const closeButton = document.getElementById('close-premium-overlay');
                 if (closeButton) {
-                    closeButton.addEventListener('click', function() {
-                        hidePremiumOverlay();
+                    closeButton.addEventListener('click', () => {
+                        premiumOverlay.classList.add('hidden');
+                        showNoContentMessage();
                     });
                 }
                 
-                // Add retry button functionality
-                const retryButton = document.getElementById('retry-button');
-                if (retryButton) {
-                    retryButton.addEventListener('click', function() {
-                        window.location.reload();
+                // Set up upgrade buttons
+                const upgradeButtons = document.querySelectorAll('.premium-button');
+                upgradeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tier = button.getAttribute('data-tier');
+                        window.location.href = `../premium-upgrade/?tier=${tier}&email=${encodeURIComponent(getPlayerAuth().email)}`;
                     });
-                }
-            }
-
-            const evidenceGrid = document.getElementById('evidence-grid');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const errorContainer = document.getElementById('error-container');
-            const premiumOverlay = document.getElementById('premium-overlay');
-            
-            // Get player auth from URL parameters or localStorage
-            function getPlayerAuth() {
-                // First try to get from URL parameters
-                const urlParams = new URLSearchParams(window.location.search);
-                const playerParam = urlParams.get('player');
-                const tokenParam = urlParams.get('token');
-                
-                // If token is in URL, store it in localStorage
-                if (tokenParam) {
-                    localStorage.setItem('auth_token', tokenParam);
-                    // Store player email if provided
-                    if (playerParam) {
-                        localStorage.setItem('player_email', playerParam);
-                        localStorage.setItem('player_last_access', Date.now().toString());
-                    }
-                }
-                
-                // Get token from localStorage
-                const authToken = localStorage.getItem('auth_token');
-                
-                // Get player email from URL or localStorage
-                let playerEmail = playerParam;
-                if (!playerEmail) {
-                    playerEmail = localStorage.getItem('player_email');
-                    // Validate stored email is not too old (24 hours)
-                    const lastAccess = parseInt(localStorage.getItem('player_last_access') || '0');
-                    const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-                    if (Date.now() - lastAccess > MAX_AGE) {
-                        // Clear expired data
-                        localStorage.removeItem('player_email');
-                        playerEmail = null;
-                    }
-                }
-                
-                return {
-                    email: playerEmail,
-                    token: authToken
-                };
-            }
-            
-            // Generate a new auth token
-            async function generateAuthToken() {
-                try {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const playerEmail = urlParams.get('player');
-                    
-                    if (!playerEmail) {
-                        throw new Error('No player email provided');
-                    }
-                    
-                    const response = await apiProxy.fetch('/api/external/generate-token', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            playerEmail: playerEmail,
-                        }),
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to generate token');
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.token) {
-                        // Save the token to localStorage
-                        localStorage.setItem('playerAuth', JSON.stringify({
-                            email: playerEmail,
-                            token: data.token
-                        }));
-                        return true;
-                    } else {
-                        throw new Error('No token returned from API');
-                    }
-                } catch (error) {
-                    console.error('Error generating auth token:', error);
-                    return false;
-                }
-            }
-            
-            // Validate a JWT token
-            async function validateToken(token) {
-                try {
-                    const response = await apiProxy.fetchWithAuth('/api/external/validate-token', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        return false;
-                    }
-                    
-                    const data = await response.json();
-                    return data.valid === true;
-                } catch (error) {
-                    console.error('Error validating token:', error);
-                    return false;
-                }
-            }
-            
-            // Load evidence content immediately
-            async function loadEvidenceContent() {
-                showLoading(true);
-                hideError();
-                
-                try {
-                    const { email, token } = getPlayerAuth();
-                    
-                    if (!email) {
-                        showError('Authentication required. Please access this page through the main game experience.');
-                        hideLoading();
-                        return;
-                    }
-                    
-                    // Track evidence access
-                    await trackEvidenceAccess(email);
-                    
-                    // Fetch standard evidence content
-                    const standardEvidence = await fetchEvidenceContent(email);
-                    
-                    // Fetch premium evidence content if user has a token
-                    let premiumEvidence = { evidence_items: [] };
-                    if (token) {
-                        premiumEvidence = await fetchPremiumEvidence(email);
-                    }
-                    
-                    // Get player premium tier
-                    const playerPremiumTier = standardEvidence.playerTier || 'free';
-                    
-                    // Render evidence content
-                    renderEvidenceContent(standardEvidence, premiumEvidence, playerPremiumTier);
-                    
-                    hideLoading();
-                } catch (error) {
-                    console.error('Error loading evidence content:', error);
-                    showError('Failed to load evidence content. Please try again later.');
-                    hideLoading();
-                }
-            }
-            
-            // Fetch standard evidence content from the API
-            async function fetchEvidenceContent(playerEmail) {
-                const response = await apiProxy.fetchWithAuth('/api/external/get-content', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        playerEmail: playerEmail,
-                        contentType: 'evidence'
-                    })
-                }, playerEmail);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch evidence content: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                return data;
-            }
-            
-            // Fetch premium evidence content from the API
-            async function fetchPremiumEvidence(playerEmail) {
-                try {
-                    const response = await apiProxy.fetchWithAuth('/api/external/premium-content', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            player: playerEmail,
-                            contentType: 'evidence'
-                        })
-                    }, playerEmail);
-                    
-                    if (!response.ok) {
-                        console.warn(`Premium content not available: ${response.status}`);
-                        return { evidence_items: [] };
-                    }
-                    
-                    const data = await response.json();
-                    return data;
-                } catch (error) {
-                    console.error('Error fetching premium evidence:', error);
-                    return { evidence_items: [] };
-                }
-            }
-            
-            // Render evidence content in the grid
-            function renderEvidenceContent(standardData, premiumData, playerTier) {
-                // Clear the grid
-                evidenceGrid.innerHTML = '';
-                
-                // Create standard evidence section
-                const standardSection = document.createElement('div');
-                standardSection.classList.add('evidence-section');
-                standardSection.innerHTML = `<h2 class="section-title">Standard Evidence</h2>`;
-                
-                // Add standard evidence items
-                if (standardData.content && standardData.content.length > 0) {
-                    standardData.content.forEach(item => {
-                        const evidenceCard = createEvidenceCard(item, false);
-                        standardSection.appendChild(evidenceCard);
-                    });
-                } else {
-                    standardSection.innerHTML += `<p class="no-evidence-message">No standard evidence files available.</p>`;
-                }
-                
-                evidenceGrid.appendChild(standardSection);
-                
-                // Create premium evidence sections by tier
-                const premiumTiers = {
-                    'investigator-toolkit': {
-                        title: 'Investigator Toolkit Evidence',
-                        items: []
-                    },
-                    'insider-access': {
-                        title: 'Insider Access Evidence',
-                        items: []
-                    },
-                    'architects-confidential': {
-                        title: 'Confidential Evidence',
-                        items: []
-                    }
-                };
-                
-                // Sort premium evidence into tiers
-                if (premiumData.evidence_items && premiumData.evidence_items.length > 0) {
-                    premiumData.evidence_items.forEach(item => {
-                        const tier = item.premium_tier || 'investigator-toolkit';
-                        if (premiumTiers[tier]) {
-                            premiumTiers[tier].items.push(item);
-                        }
-                    });
-                }
-                
-                // Create sections for each tier
-                Object.keys(premiumTiers).forEach(tier => {
-                    const tierData = premiumTiers[tier];
-                    if (tierData.items.length > 0) {
-                        const tierSection = document.createElement('div');
-                        tierSection.classList.add('evidence-section', 'premium-section');
-                        tierSection.innerHTML = `<h2 class="section-title">${tierData.title}</h2>`;
-                        
-                        // Check if player has access to this tier
-                        const hasAccess = hasAccessToTier(playerTier, tier);
-                        
-                        // Add premium evidence items
-                        tierData.items.forEach(item => {
-                            const evidenceCard = createEvidenceCard(item, !hasAccess);
-                            tierSection.appendChild(evidenceCard);
-                        });
-                        
-                        evidenceGrid.appendChild(tierSection);
-                    }
                 });
-                
-                // If no evidence found at all
-                if (evidenceGrid.children.length === 0) {
-                    evidenceGrid.innerHTML = `
-                        <div class="error-message">
-                            <p>No evidence files available at this time. Check back later as your investigation progresses.</p>
-                        </div>
-                    `;
-                }
-            }
-            
-            // Create an evidence card element
-            function createEvidenceCard(item, isPremiumLocked) {
-                const card = document.createElement('div');
-                card.classList.add('evidence-card');
-                
-                if (isPremiumLocked) {
-                    card.classList.add('premium-locked');
-                }
-                
-                if (item.premium_tier) {
-                    card.classList.add('premium-evidence-card');
-                    card.setAttribute('data-tier', item.premium_tier);
-                }
-                
-                // Create card content
-                card.innerHTML = `
-                    <h3 class="evidence-title">${item.title || 'Untitled Evidence'}</h3>
-                    <div class="evidence-meta">
-                        <span class="evidence-date">${item.date || 'Unknown Date'}</span>
-                        <span class="evidence-type">${item.type || 'Document'}</span>
-                    </div>
-                    <div class="evidence-content">${item.content || 'No content available.'}</div>
-                `;
-                
-                // Add tags if available
-                if (item.tags && item.tags.length > 0) {
-                    const tagsContainer = document.createElement('div');
-                    tagsContainer.classList.add('evidence-tags');
-                    
-                    item.tags.forEach(tag => {
-                        const tagElement = document.createElement('span');
-                        tagElement.classList.add('evidence-tag');
-                        tagElement.textContent = tag;
-                        tagsContainer.appendChild(tagElement);
-                    });
-                    
-                    card.appendChild(tagsContainer);
-                }
-                
-                // Add premium overlay for locked content
-                if (isPremiumLocked) {
-                    const overlay = document.createElement('div');
-                    overlay.classList.add('premium-overlay');
-                    overlay.innerHTML = `
-                        <div class="premium-lock-icon">🔒</div>
-                        <div class="premium-message">Premium Content</div>
-                        <button class="premium-access-button" data-tier="${item.premium_tier}">Upgrade Access</button>
-                    `;
-                    
-                    // Add click event to upgrade button
-                    overlay.querySelector('.premium-access-button').addEventListener('click', function() {
-                        showPremiumOverlay();
-                    });
-                    
-                    card.appendChild(overlay);
-                }
-                
-                return card;
-            }
-            
-            // Check if player has access to a specific tier
-            function hasAccessToTier(playerTier, requiredTier) {
-                const tierHierarchy = {
-                    'free': 0,
-                    'none': 0,
-                    'investigator-toolkit': 1,
-                    'insider-access': 2,
-                    'architects-confidential': 3
-                };
-                
-                const playerTierLevel = tierHierarchy[playerTier] || 0;
-                const requiredTierLevel = tierHierarchy[requiredTier] || 0;
-                
-                return playerTierLevel >= requiredTierLevel;
-            }
-            
-            // Format tier name for display
-            function formatTierName(tierName) {
-                return tierName
-                    .split('-')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
-            }
-            
-            // Track evidence access
-            async function trackEvidenceAccess(playerEmail) {
-                try {
-                    const response = await apiProxy.fetchWithAuth('/api/external/evidence-access', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            playerEmail: playerEmail,
-                            fileId: 'evidence-archive-access'
-                        })
-                    }, playerEmail);
-                    
-                    return response.ok;
-                } catch (error) {
-                    console.error('Error tracking evidence access:', error);
-                    return false;
-                }
-            }
-            
-            // Upgrade to premium tier
-            function upgradeToPremium(tier) {
-                // In a real implementation, this would redirect to a payment page
-                // For now, we'll just log the upgrade request
-                console.log(`Upgrade requested to tier: ${tier}`);
-                
-                // Redirect to the premium upgrade page
-                const { email } = getPlayerAuth();
-                window.location.href = `../decoding-death-website/premium-upgrade?tier=${tier}&player=${encodeURIComponent(email)}&source=evidence-archive`;
-            }
-            
-            // Show/hide functions
-            function showLoading(isLoading) {
-                if (isLoading) {
-                    loadingIndicator.classList.remove('hidden');
-                } else {
-                    loadingIndicator.classList.add('hidden');
-                }
-            }
-            
-            function showError(message) {
-                errorContainer.classList.remove('hidden');
-                errorContainer.innerHTML = `
-                    <div class="error-message">
-                        <p>${message}</p>
-                        <button id="retry-button">Retry</button>
+            } else {
+                // If overlay doesn't exist, show a message in the grid
+                evidenceGrid.innerHTML = `
+                    <div class="no-content-message">
+                        <h3>Premium Access Required</h3>
+                        <p>The Evidence Archive requires premium access.</p>
+                        <p>Please upgrade your account to view evidence files.</p>
+                        <a href="../premium-upgrade/" class="premium-link">Upgrade Now</a>
                     </div>
                 `;
-                
-                document.getElementById('retry-button').addEventListener('click', function() {
-                    loadEvidenceContent();
-                });
             }
-            
-            function hideError() {
-                errorContainer.classList.add('hidden');
+        }
+        
+        // Close the evidence modal
+        function closeEvidenceModal() {
+            const modal = document.getElementById('evidence-modal');
+            if (modal) {
+                modal.style.display = 'none';
             }
-            
-            function showPremiumOverlay() {
-                premiumOverlay.classList.remove('hidden');
-            }
-            
-            function hidePremiumOverlay() {
-                premiumOverlay.classList.add('hidden');
-            }
-        });
+        }
+        
+        // Initialize the page when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
 </html>
