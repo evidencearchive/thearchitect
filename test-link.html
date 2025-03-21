@@ -113,6 +113,9 @@
     </div>
     
     <script>
+        // API base URL
+        const apiBaseUrl = 'https://decoding-death-backend.vercel.app/api';
+        
         // Function to generate JWT token
         function generateToken(email, premiumTier, secret) {
             const now = Math.floor(Date.now() / 1000);
@@ -183,18 +186,23 @@
                 return;
             }
             
-            const token = generateToken(email, premiumTier, secret);
-            
-            if (token) {
-                const tokenResult = document.getElementById('token-result');
-                const generatedToken = document.getElementById('generated-token');
+            try {
+                const token = generateToken(email, premiumTier, secret);
                 
-                generatedToken.value = token;
-                tokenResult.style.display = 'block';
-                
-                // Auto-fill the token in the test form
-                document.getElementById('token').value = token;
-            } else {
+                if (token) {
+                    const tokenResult = document.getElementById('token-result');
+                    const generatedToken = document.getElementById('generated-token');
+                    
+                    generatedToken.value = token;
+                    tokenResult.style.display = 'block';
+                    
+                    // Auto-fill the token in the test form
+                    document.getElementById('token').value = token;
+                } else {
+                    alert('Failed to generate token. Check the console for errors.');
+                }
+            } catch (error) {
+                console.error('Error generating token:', error);
                 alert('Failed to generate token. Check the console for errors.');
             }
         });
