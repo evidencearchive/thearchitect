@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evidence Archive | Decoding Death Investigation</title>
+    <title>Evidence Archive | Case #DD-2025-0317</title>
     <link rel="stylesheet" href="evidence-styles.css">
 </head>
 <body>
@@ -39,8 +39,8 @@
         </main>
 
         <footer class="evidence-footer">
-            <p>Decoding Death Investigation</p>
-            <p class="footer-note">OFFICIAL INVESTIGATIVE DOCUMENT - UNAUTHORIZED ACCESS PROHIBITED</p>
+            <p>OFFICIAL INVESTIGATIVE DOCUMENT</p>
+            <p class="footer-note">UNAUTHORIZED ACCESS PROHIBITED</p>
         </footer>
     </div>
 
@@ -356,9 +356,6 @@
         function createEvidenceCard(item) {
             const card = document.createElement('div');
             card.className = 'evidence-card';
-            if (item.is_premium) {
-                card.classList.add('premium-evidence');
-            }
             
             // Format the date
             const dateStr = item.date || item.created_at || 'Unknown Date';
@@ -378,7 +375,6 @@
             card.innerHTML = `
                 <div class="evidence-header">
                     <h3 class="evidence-title">${item.title || 'Untitled Evidence'}</h3>
-                    ${item.is_premium ? '<span class="premium-badge">Premium</span>' : ''}
                 </div>
                 <div class="evidence-meta">
                     <span class="evidence-date">${formattedDate}</span>
@@ -446,7 +442,6 @@
             modalContentContainer.innerHTML = `
                 <div class="modal-header">
                     <h2>${item.title || 'Untitled Evidence'}</h2>
-                    ${item.is_premium ? '<span class="premium-badge">Premium</span>' : ''}
                 </div>
                 <div class="modal-meta">
                     <span class="evidence-date">${formattedDate}</span>
