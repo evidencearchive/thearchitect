@@ -241,6 +241,13 @@
             errorContainer.classList.add('hidden');
         }
         
+        // Show authentication error
+        function showAuthError() {
+            showError('Authentication required. Please log in to access premium content.');
+            // Optionally show premium overlay
+            showPremiumOverlay();
+        }
+        
         // Load evidence content from the API
         async function loadEvidenceContent(authData) {
             try {
