@@ -129,7 +129,7 @@ body {
 
 .evidence-title {
     margin-top: 0;
-    color: var(--primary-color);
+    color: #333; 
     font-size: 18px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 8px;
