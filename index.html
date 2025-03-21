@@ -250,14 +250,18 @@
                 // Get the appropriate API URL based on environment
                 const apiBaseUrl = getApiBaseUrl();
                 
-                // Use a JSONP-like approach with no-cors mode to avoid preflight
+                // Log details about what we're doing
+                console.log('Setting up JSONP request for evidence content');
+                
                 // Create a unique callback name
                 const callbackName = 'evidenceCallback_' + Math.random().toString(36).substr(2, 9);
+                console.log('Using callback name:', callbackName);
                 
                 // Create a promise that will be resolved when the callback is called
                 const responsePromise = new Promise((resolve, reject) => {
                     // Set up the global callback function
                     window[callbackName] = function(data) {
+                        console.log('Callback received data:', data);
                         resolve(data);
                         // Clean up
                         delete window[callbackName];
@@ -267,6 +271,7 @@
                     // Set a timeout to reject the promise if the callback is not called
                     setTimeout(() => {
                         if (window[callbackName]) {
+                            console.error('JSONP request timed out');
                             delete window[callbackName];
                             document.body.removeChild(script);
                             reject(new Error('Request timed out'));
@@ -277,15 +282,25 @@
                 // Create a script element to load the data
                 const script = document.createElement('script');
                 
-                // Construct the URL with query parameters instead of using a POST request
-                const params = new URLSearchParams({
-                    email: authData.email,
-                    contentType: 'evidence',
-                    token: authData.token || '',
-                    callback: callbackName
-                });
+                // Construct the URL with query parameters
+                const params = new URLSearchParams();
+                params.append('email', authData.email);
+                params.append('contentType', 'evidence'); 
+                if (authData.token) {
+                    params.append('token', authData.token);
+                }
+                params.append('callback', callbackName);
+                
+                console.log('Request parameters:', Object.fromEntries(params.entries()));
                 
                 script.src = `${apiBaseUrl}/external/get-content-jsonp?${params.toString()}`;
+                console.log('Full JSONP URL:', script.src);
+                
+                // Add error handler
+                script.onerror = function(error) {
+                    console.error('Script loading error:', error);
+                    reject(new Error('Failed to load script'));
+                };
                 
                 // Append the script to the document
                 document.body.appendChild(script);

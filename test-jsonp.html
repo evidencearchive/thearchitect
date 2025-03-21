@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSONP Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSONP Test</h1>
+    
+    <div>
+        <label for="email">Email:</label>
+        <input type="email" id="email" value="test@example.com">
+        
+        <button onclick="testJsonp()">Test JSONP</button>
+    </div>
+    
+    <h2>Results:</h2>
+    <pre id="results">Results will appear here...</pre>
+    
+    <script>
+        function testJsonp() {
+            const email = document.getElementById('email').value;
+            const resultsElement = document.getElementById('results');
+            
+            resultsElement.textContent = 'Loading...';
+            
+            // Create a unique callback name
+            const callbackName = 'jsonpCallback_' + Math.random().toString(36).substr(2, 9);
+            
+            // Set up the global callback function
+            window[callbackName] = function(data) {
+                resultsElement.textContent = JSON.stringify(data, null, 2);
+                // Clean up
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+            
+            // Create a script element to load the data
+            const script = document.createElement('script');
+            
+            // Construct the URL with query parameters
+            // Try using a direct URL with hardcoded parameters to avoid any encoding issues
+            const url = `https://decoding-death-backend.vercel.app/api/external/get-content-jsonp?email=${encodeURIComponent(email)}&contentType=evidence&callback=${encodeURIComponent(callbackName)}`;
+            console.log('Full JSONP URL:', url);
+            
+            script.src = url;
+            
+            // Add error handler
+            script.onerror = function(error) {
+                resultsElement.textContent = 'Error loading script: ' + error;
+            };
+            
+            // Append the script to the document
+            document.body.appendChild(script);
+        }
+    </script>
+</body>
+</html>
